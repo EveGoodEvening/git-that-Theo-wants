@@ -23,3 +23,7 @@ export * from "./snapshot/snapshot.ts";
 export * from "./snapshot/bookmark.ts";
 export * from "./snapshot/oplog.ts";
 export * from "./workspace/working-copy.ts";
+
+// C7: independent workspaces with conflict-as-data.
+export * from "./workspace/workspace.ts";
+export * from "./workspace/conflict.ts";
