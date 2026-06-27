@@ -18,3 +18,8 @@ export * from "./vfs/ops.ts";
 export * from "./crypto/keys.ts";
 export * from "./crypto/secret.ts";
 export * from "./crypto/policy.ts";
+
+export * from "./snapshot/snapshot.ts";
+export * from "./snapshot/bookmark.ts";
+export * from "./snapshot/oplog.ts";
+export * from "./workspace/working-copy.ts";
