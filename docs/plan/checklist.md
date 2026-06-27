@@ -37,12 +37,12 @@ C7 depends only on C4 (NOT C6); C9 joins C6+C7; C8 is a skippable branch off C6 
 - **Commit:** `chore: bootstrap gtw ts/bun skeleton`
 
 ### C1 — Core object model: content-addressed blobs + signed ACL metadata graph
-- [ ] Define `Blob { id, bytes }` and content hash (SHA-256, framed)
-- [ ] Define `ContentObject` envelope (`{ id, kind: 'blob'|'secret-blob', bytes }`) — store seam is secret-aware without crypto
-- [ ] Define `AclRecord` and signed metadata graph node (signature stub)
-- [ ] Keep ACL metadata separate from content addressing (two graphs)
-- [ ] Define `SnapshotId` (opaque Hash alias, **private content-addressed identity of the snapshot's core state** — hash of `parentId`, **canonical tree entries (path + blob id)**, `timestamp`, `message`, `immutable` flag; **excludes manifest refs** per §2 decision 10; tree identity is the canonical `(path, blobId)` set so a path-only rename/move changes the id even with unchanged blob ids; embeds timestamps/messages/private paths/private blob ids so never in public exports; C4 computes the id from core state, C1 stores it opaquely) + minimal `SnapshotEnvelope` storage contract (`{ id, parentId, serializedBytes }`) in `src/core/snapshot-contract.ts` (storage shape only; full `Snapshot` is C4; `PublicProjectionId` for public exports is defined in C6 per §2 decision 8)
-- [ ] Unit tests: blob round-trip/hash-equality; `ContentObject` envelope round-trips both kinds; ACL serialize/parse with signature; `SnapshotEnvelope` round-trips with `parentId` intact
+- [x] Define `Blob { id, bytes }` and content hash (SHA-256, framed)
+- [x] Define `ContentObject` envelope (`{ id, kind: 'blob'|'secret-blob', bytes }`) — store seam is secret-aware without crypto
+- [x] Define `AclRecord` and signed metadata graph node (signature stub)
+- [x] Keep ACL metadata separate from content addressing (two graphs)
+- [x] Define `SnapshotId` (opaque Hash alias, **private content-addressed identity of the snapshot's core state** — hash of `parentId`, **canonical tree entries (path + blob id)**, `timestamp`, `message`, `immutable` flag; **excludes manifest refs** per §2 decision 10; tree identity is the canonical `(path, blobId)` set so a path-only rename/move changes the id even with unchanged blob ids; embeds timestamps/messages/private paths/private blob ids so never in public exports; C4 computes the id from core state, C1 stores it opaquely) + minimal `SnapshotEnvelope` storage contract (`{ id, parentId, serializedBytes }`) in `src/core/snapshot-contract.ts` (storage shape only; full `Snapshot` is C4; `PublicProjectionId` for public exports is defined in C6 per §2 decision 8)
+- [x] Unit tests: blob round-trip/hash-equality; `ContentObject` envelope round-trips both kinds; ACL serialize/parse with signature; `SnapshotEnvelope` round-trips with `parentId` intact
 - **Verify:** `bun test tests/core/` passes; identical content → identical ids; `ContentObject` envelope round-trips both kinds; ACL survives round-trip; `SnapshotEnvelope` round-trips with `parentId` intact
 - **Deps:** C0 · **Parallel-safe:** yes with C5 if it does not edit C1-owned files; C1 owns `src/core/object.ts`, `src/core/acl.ts`, `src/core/ids.ts`, `src/core/snapshot-contract.ts` exclusively; C5 may add `src/core/secret-blob.ts` (new file) but must not edit those four C1-owned files (C8 now depends on C6, so it is not parallel with C1)
 - **Blocker/Deferred:** signature is a stub (HMAC local key); real signing deferred. Revocation semantics deferred to C6.
