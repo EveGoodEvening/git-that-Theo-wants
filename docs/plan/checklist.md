@@ -131,10 +131,10 @@ C7 depends only on C4 (NOT C6); C9 joins C6+C7; C8 is a skippable branch off C6 
 - **Commit:** `feat(cli): thin command surface over the gtw core`
 
 ### C10 — End-to-end example & pain-point mapping
-- [ ] Write `examples/demo.ts` exercising all six pain points (secret `.env`, private file, private PR → publish → unpublish, snapshot+tag, two workspaces same ref, in-memory no real-FS clone). Demo is a **local deterministic simulation** — no production/server security claims (§2, §5)
-- [ ] Write `docs/plan/pain-point-mapping.md` (pain point → feature → chunk(s))
-- [ ] Add pointer from `README.md` to example (no endorsement claims)
-- [ ] Assert example runs green
+- [x] Write `examples/demo.ts` exercising all six pain points (secret `.env`, private file, private PR → publish → unpublish, snapshot+tag, two workspaces same ref, in-memory no real-FS clone). Demo is a **local deterministic simulation** — no production/server security claims (§2, §5)
+- [x] Write `docs/plan/pain-point-mapping.md` (pain point → feature → chunk(s))
+- [x] Add pointer from `README.md` to example (no endorsement claims)
+- [x] Assert example runs green
 - **Verify:** `bun run examples/demo.ts` exits 0 and prints pain-point-by-pain-point success; mapping table covers all six pain points
 - **Deps:** C9 · **Parallel-safe:** no (final integration)
 - **Blocker/Deferred:** none for prototype; production hardening out-of-scope

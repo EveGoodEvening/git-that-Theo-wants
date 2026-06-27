@@ -26,6 +26,10 @@ Theo thinks Git is not the right abstraction for many scenarios. It’s better t
 6. **Source control should not depend on the real operating system and file system**:  
    In a world with Bash (a JavaScript/TypeScript layer that can emulate bash, allowing agents to run without a real Linux kernel or file system), using the CLI to operate Git on real files in a real environment is just stupid. Randomly cloning files in memory is much easier than moving a large number of files around on the system.
 
+## Local prototype demo
+
+Run `bun run examples/demo.ts` to exercise the six pain points above in one local deterministic prototype simulation. The pain-point-to-feature map lives at `docs/plan/pain-point-mapping.md`. This demo is limited to the current data model and does not model production/server enforcement.
+
 ### APFS rant
 
 Theo shared a disk performance benchmark: cloning a project + installing with PNPM from cache, using only file creation operations:
