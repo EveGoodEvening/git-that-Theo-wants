@@ -58,10 +58,10 @@ C7 depends only on C4 (NOT C6); C9 joins C6+C7; C8 is a skippable branch off C6 
 - **Commit:** `feat(store): pluggable Store interface and in-memory backend`
 
 ### C3 — Virtual filesystem layer over snapshot blobs
-- [ ] Define `VirtualTree` (path → blob-id map + parent `SnapshotId` from C1's `src/core/ids.ts`; C3 does NOT construct `Snapshot` records — that is C4)
-- [ ] Implement `read/write/move/remove` returning new immutable `VirtualTree` (not persisted snapshots; C4 wraps into `Snapshot`)
-- [ ] No OS files touched (all blob IO via `Store`)
-- [ ] Tests: mutate tree → assert resulting `VirtualTree` content (path→blob-id map); round-trip; remove-missing raises typed error. Do NOT assert snapshot persistence (C4)
+- [x] Define `VirtualTree` (path → blob-id map + parent `SnapshotId` from C1's `src/core/ids.ts`; C3 does NOT construct `Snapshot` records — that is C4)
+- [x] Implement `read/write/move/remove` returning new immutable `VirtualTree` (not persisted snapshots; C4 wraps into `Snapshot`)
+- [x] No OS files touched (all blob IO via `Store`)
+- [x] Tests: mutate tree → assert resulting `VirtualTree` content (path→blob-id map); round-trip; remove-missing raises typed error. Do NOT assert snapshot persistence (C4)
 - **Verify:** `bun test tests/vfs/` passes; spy on `Store` asserts no real-FS calls
 - **Deps:** C2 · **Parallel-safe:** yes, owns `src/vfs/`; C4 waits for this
 - **Blocker/Deferred:** directory semantics may simplify to path-prefix-only (record if so)
