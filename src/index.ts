@@ -12,3 +12,5 @@ export * from "./core/acl.ts";
 export * from "./core/snapshot-contract.ts";
 export * from "./store/store.ts";
 export * from "./store/memory-store.ts";
+export * from "./vfs/vfs.ts";
+export * from "./vfs/ops.ts";
