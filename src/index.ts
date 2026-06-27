@@ -23,3 +23,26 @@ export * from "./snapshot/snapshot.ts";
 export * from "./snapshot/bookmark.ts";
 export * from "./snapshot/oplog.ts";
 export * from "./workspace/working-copy.ts";
+
+// C6: per-file / per-snapshot visibility states, authorization, publish/
+// unpublish transitions, private manifest, and public export bundle.
+// C6 visibility: explicit named exports instead of a star export, to avoid an
+// ambiguous root `Denied` (crypto `./crypto/secret.ts` already exports `Denied`).
+// The policy denial class is re-exported under the unique name `VisibilityDenied`.
+export {
+  type VisibilityState,
+  VISIBILITY_STATES,
+  type ActorRole,
+  type VisibilityOperation,
+  type MatrixDecision,
+  Denied as VisibilityDenied,
+  matrixDecision,
+  resolveRole,
+  PUBLISHABLE_STATES,
+  publishTarget,
+  unpublishTarget,
+} from "./policy/visibility.ts";
+export * from "./policy/authorization.ts";
+export * from "./policy/transitions.ts";
+export * from "./policy/private-manifest.ts";
+export * from "./export/public-manifest.ts";
