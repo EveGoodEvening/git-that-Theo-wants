@@ -25,12 +25,12 @@ C7 depends only on C4 (NOT C6); C9 joins C6+C7; C8 is a skippable branch off C6 
 ## Chunks
 
 ### C0 — Repo & tooling bootstrap
-- [ ] Create `package.json` (type module, scripts: `test`, `build`, `dev`)
-- [ ] Create `tsconfig.json` (strict, ESNext, module resolution bundler)
-- [ ] Create `.gitignore` (`node_modules/`, `dist/`, `.gtw/`)
-- [ ] Add `src/index.ts` exporting a `version` constant
-- [ ] Add `src/cli/index.ts` with a `gtw --help` stub that prints version
-- [ ] Add `tests/smoke.test.ts` asserting `version` is defined and `--help` exits 0
+- [x] Create `package.json` (type module, scripts: `test`, `build`, `dev`)
+- [x] Create `tsconfig.json` (strict, ESNext, module resolution bundler)
+- [x] Create `.gitignore` (`node_modules/`, `dist/`, `.gtw/`)
+- [x] Add `src/index.ts` exporting a `version` constant
+- [x] Add `src/cli/index.ts` with a `gtw --help` stub that prints version
+- [x] Add `tests/smoke.test.ts` asserting `version` is defined and `--help` exits 0
 - **Verify:** `bun test` passes; `bun run src/cli/index.ts --help` prints version and exits 0
 - **Deps:** none (root) · **Parallel-safe:** no (must land first)
 - **Blocker/Deferred:** none

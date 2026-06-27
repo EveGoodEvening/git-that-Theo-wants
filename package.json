@@ -1,0 +1,17 @@
+{
+  "name": "gtw",
+  "version": "0.0.0",
+  "description": "Git that Theo wants — a prototype source control model with first-class secrets and per-file visibility.",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "gtw": "src/cli/index.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "build": "bun build src/cli/index.ts --target=bun --outdir=dist",
+    "dev": "bun run src/cli/index.ts"
+  },
+  "devDependencies": {},
+  "dependencies": {}
+}
