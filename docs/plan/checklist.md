@@ -49,9 +49,9 @@ C7 depends only on C4 (NOT C6); C9 joins C6+C7; C8 is a skippable branch off C6 
 - **Commit:** `feat(core): content-addressed blobs and signed ACL graph`
 
 ### C2 — Pluggable Store interface + in-memory backend
-- [ ] Define `Store` interface on C1 contracts: `putObject/getObject/hasObject` (ContentObject envelope, crypto-agnostic), `putAcl/getAcl`, `putSnapshot/getSnapshot/listSnapshots` (immutable `SnapshotEnvelope`), plus `putManifestRefs/getManifestRefs` for a separate mutable `ManifestRefs { publicManifestRef: Hash | null; privateManifestRef: Hash | null }` attachment/index keyed by `SnapshotId`
-- [ ] Implement `MemoryStore` using `Map`s
-- [ ] Tests: store/retrieve `ContentObject` both kinds; ACL round-trip; `SnapshotEnvelope` round-trip; missing → typed `NotFound`; duplicate `putSnapshot` of same envelope idempotent; same `SnapshotId` with different core `serializedBytes` rejected; `putManifestRefs` updates changed refs for the same `SnapshotId`, repeating same refs is idempotent, and the snapshot envelope bytes remain unchanged. **No delete tests** (append-only; GC deferred)
+- [x] Define `Store` interface on C1 contracts: `putObject/getObject/hasObject` (ContentObject envelope, crypto-agnostic), `putAcl/getAcl`, `putSnapshot/getSnapshot/listSnapshots` (immutable `SnapshotEnvelope`), plus `putManifestRefs/getManifestRefs` for a separate mutable `ManifestRefs { publicManifestRef: Hash | null; privateManifestRef: Hash | null }` attachment/index keyed by `SnapshotId`
+- [x] Implement `MemoryStore` using `Map`s
+- [x] Tests: store/retrieve `ContentObject` both kinds; ACL round-trip; `SnapshotEnvelope` round-trip; missing → typed `NotFound`; duplicate `putSnapshot` of same envelope idempotent; same `SnapshotId` with different core `serializedBytes` rejected; `putManifestRefs` updates changed refs for the same `SnapshotId`, repeating same refs is idempotent, and the snapshot envelope bytes remain unchanged. **No delete tests** (append-only; GC deferred)
 - **Verify:** `bun test tests/store/` passes; no real-FS writes; immutable snapshot-envelope puts are idempotent/conflict-detected while manifest-ref attachment upserts can change refs for the same `SnapshotId`
 - **Deps:** C1 · **Parallel-safe:** yes, owns `src/store/`; C3 waits for this
 - **Blocker/Deferred:** real-FS backend is C8; **deletion/GC deferred** (content-addressed objects and snapshot envelopes are append-only; the manifest-ref attachment index is the sole mutable upsert surface and has no delete method)

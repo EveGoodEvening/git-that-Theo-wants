@@ -10,3 +10,5 @@ export * from "./core/ids.ts";
 export * from "./core/object.ts";
 export * from "./core/acl.ts";
 export * from "./core/snapshot-contract.ts";
+export * from "./store/store.ts";
+export * from "./store/memory-store.ts";
