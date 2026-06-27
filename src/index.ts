@@ -46,3 +46,6 @@ export * from "./policy/authorization.ts";
 export * from "./policy/transitions.ts";
 export * from "./policy/private-manifest.ts";
 export * from "./export/public-manifest.ts";
+// C7: independent workspaces with conflict-as-data.
+export * from "./workspace/workspace.ts";
+export * from "./workspace/conflict.ts";

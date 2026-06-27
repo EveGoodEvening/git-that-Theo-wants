@@ -103,10 +103,10 @@ C7 depends only on C4 (NOT C6); C9 joins C6+C7; C8 is a skippable branch off C6 
 - **Commit:** `feat(policy): file-level visibility states and publish transition`
 
 ### C7 — Workspace independence (no worktree hijacking)
-- [ ] Track workspace ids + current snapshot/ref pointers independent of ref ownership
-- [ ] Allow concurrent checkout of same snapshot/ref with no locking
-- [ ] Minimal conflict-as-data: divergence → resolvable conflict object, not lock error
-- [ ] Tests: two workspaces on same ref; neither blocked; divergence → conflict object, not lock error
+- [x] Track workspace ids + current snapshot/ref pointers independent of ref ownership
+- [x] Allow concurrent checkout of same snapshot/ref with no locking
+- [x] Minimal conflict-as-data: divergence → resolvable conflict object, not lock error
+- [x] Tests: two workspaces on same ref; neither blocked; divergence → conflict object, not lock error
 - **Verify:** `bun test tests/workspace/independence.test.ts` passes; two workspaces mutate independently with zero lock errors
 - **Deps:** C4 · **Parallel-safe:** yes, owns `src/workspace/workspace.ts` + `src/workspace/conflict.ts`; do not edit `src/workspace/working-copy.ts`
 - **Blocker/Deferred:** full jj-style auto-rebase of descendants deferred
