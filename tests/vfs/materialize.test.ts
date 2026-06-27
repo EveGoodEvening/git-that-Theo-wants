@@ -903,6 +903,32 @@ describe("C8 materialize: invalid manifest leaves existing target untouched", ()
     expect(listFiles(dir)).toEqual(["preexisting.txt"]);
     rmSync(dir, { recursive: true, force: true });
   });
+
+  it("path-prefix file/directory conflict leaves existing target untouched", async () => {
+    // Regression: `a` and `a/b` cannot both be materialized because `a` would
+    // need to be a file and a directory. The conflict must be rejected during
+    // preflight, before the target is cleared or any partial export is written.
+    const store = new MemoryStore();
+    const parentBlob = await putBlob(store, "parent-file");
+    const childBlob = await putBlob(store, "child-file");
+    const manifest = await buildPublicManifest([], [
+      { path: "a", blobId: parentBlob },
+      { path: "a/b", blobId: childBlob },
+    ]);
+    const objects = new Map<Hash, { readonly kind: "blob"; readonly bytes: Uint8Array }>();
+    objects.set(parentBlob, { kind: "blob", bytes: enc.encode("parent-file") });
+    objects.set(childBlob, { kind: "blob", bytes: enc.encode("child-file") });
+    const bundle: PublicExportBundle = { manifest, objects };
+
+    const dir = freshDir("preserve-prefix-conflict");
+    writeFileSync(join(dir, "preexisting.txt"), "keep-me");
+    await expect(materialize(bundle, dir)).rejects.toBeInstanceOf(MaterializeError);
+    expect(existsSync(join(dir, "preexisting.txt"))).toBe(true);
+    expect(dec.decode(readFileSync(join(dir, "preexisting.txt")))).toBe("keep-me");
+    expect(existsSync(join(dir, "a"))).toBe(false);
+    expect(listFiles(dir)).toEqual(["preexisting.txt"]);
+    rmSync(dir, { recursive: true, force: true });
+  });
 });
 
 // ===========================================================================

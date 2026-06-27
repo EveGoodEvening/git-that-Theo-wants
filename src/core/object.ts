@@ -85,7 +85,7 @@ export async function blobId(bytes: Uint8Array): Promise<Hash> {
 /** Create a `Blob` from raw bytes, computing its content id. The returned
  *  `bytes` is an owned copy so callers cannot mutate the input after hashing. */
 export async function createBlob(bytes: Uint8Array): Promise<Blob> {
-  const owned = bytes.slice();
+  const owned = new Uint8Array(bytes);
   return { id: await blobId(owned), bytes: owned };
 }
 
@@ -98,6 +98,7 @@ export async function createBlob(bytes: Uint8Array): Promise<Blob> {
 export function serializeBlob(blob: Blob): Uint8Array {
   const idHex = new TextEncoder().encode(blob.id);
   const framed = frameBytes("blob", blob.bytes);
+
   // Layout: `blob <len>\0<bytes>` (framed) then `\0<id-hex>`.
   return concat([framed, new Uint8Array([0]), idHex]);
 }
@@ -127,7 +128,7 @@ export async function parseBlob(data: Uint8Array): Promise<Blob> {
   // caller, who could mutate `data` (and thus `parsed`) before the id is
   // recomputed. The owned copy is what gets hashed and returned, isolating the
   // blob from post-parse mutation of the input buffer.
-  const owned = parsed.slice();
+  const owned = new Uint8Array(parsed);
   const recomputed = await sha256(blobFraming(owned));
   if (recomputed !== idHex) {
     throw new Error("Invalid Blob serialization: id does not match content hash");
@@ -207,7 +208,7 @@ export async function createContentObject(
   kind: ContentKind,
   bytes: Uint8Array,
 ): Promise<ContentObject> {
-  const owned = bytes.slice();
+  const owned = new Uint8Array(bytes);
   return { id: await contentObjectId(kind, owned), kind, bytes: owned };
 }
 
@@ -288,7 +289,7 @@ export async function parseContentObject(data: Uint8Array): Promise<ContentObjec
   // caller, who could mutate `data` (and thus `bytes`) before the id is
   // recomputed. The owned copy is what gets hashed and returned, isolating the
   // object from post-parse mutation of the input buffer.
-  const owned = bytes.slice();
+  const owned = new Uint8Array(bytes);
   const recomputed = await sha256(contentFraming(kind, owned));
   if (recomputed !== idHex) {
     throw new Error("Invalid ContentObject serialization: id does not match envelope hash");

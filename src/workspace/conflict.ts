@@ -207,11 +207,10 @@ export class ConflictLog {
 }
 
 /**
- * Detect divergence between two workspace heads on the same logical ref. When
- * both workspaces share a `base` snapshot but have produced distinct current
- * snapshot ids, a `Conflict` is built and recorded in `log`. Returns the
- * recorded conflict, or `null` if there is no divergence (same head, or no
- * shared base). Never throws.
+ * Detect divergence between two non-null workspace heads on the same logical ref.
+ * A conflict is recorded only when the heads differ from each other and both
+ * differ from the shared `base`. Returns the recorded conflict, or `null` when
+ * either head is still at `base` or both heads are the same. Never throws.
  *
  * `ref` is the logical ref name the workspaces are attached to (may be empty
  * for anonymous divergence). The two workspace ids and their current snapshot
@@ -227,7 +226,7 @@ export async function detectDivergence(
   rightHead: SnapshotId,
   timestamp: number,
 ): Promise<Conflict | null> {
-  if (leftHead === rightHead) {
+  if (leftHead === rightHead || leftHead === base || rightHead === base) {
     return null;
   }
   const conflict = await createConflict(

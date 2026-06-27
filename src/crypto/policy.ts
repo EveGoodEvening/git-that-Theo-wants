@@ -52,11 +52,12 @@ export async function createReadGrant(
 
 /**
  * Fetch a signed ACL node from `store` by `grantId` and verify it is a valid
- * read grant for `objectId`: the signature must verify under `aclKey`,
+ * read grant for `objectId` to `expectedSubject`: the signature must verify
+ * under `aclKey`, `record.subject` must equal `expectedSubject`,
  * `record.object` must equal `objectId`, and `permissions` must include
  * `'read'`. Returns the verified node, or `undefined` if the node is missing,
- * the signature is invalid, the object binding is wrong, or the grant lacks
- * read permission.
+ * the signature is invalid, the subject binding is wrong, the object binding is
+ * wrong, or the grant lacks read permission.
  *
  * A missing node (`Store.getAcl` throws `NotFound`) is reported as
  * `undefined` rather than re-thrown, so callers can distinguish "no grant"
@@ -67,6 +68,7 @@ export async function verifyReadGrant(
   store: Store,
   grantId: AclNodeId,
   objectId: Hash,
+  expectedSubject: ActorId,
   aclKey: LocalKey,
 ): Promise<SignedAclNode | undefined> {
   let node: SignedAclNode;
@@ -77,6 +79,7 @@ export async function verifyReadGrant(
   }
   const ok = await verifyAclRecord(node.record, node.signature, aclKey);
   if (!ok) return undefined;
+  if (node.record.subject !== expectedSubject) return undefined;
   if (node.record.object !== objectId) return undefined;
   if (!node.record.permissions.has("read")) return undefined;
   return node;

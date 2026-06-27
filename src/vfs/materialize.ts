@@ -127,6 +127,31 @@ function safeResolvePath(targetDir: string, relPath: string): string {
 }
 
 /**
+ * Reject manifests whose file paths imply that one public entry must be both a
+ * file and an ancestor directory of another public entry (for example `a` and
+ * `a/b`). Real filesystems cannot materialize that tree without first writing
+ * a partial export and then failing, so detect the conflict before clearing the
+ * target directory.
+ */
+function assertNoPathPrefixConflicts(paths: readonly string[]): void {
+  const pathSet = new Set(paths);
+  for (const path of paths) {
+    for (
+      let slash = path.indexOf("/");
+      slash !== -1;
+      slash = path.indexOf("/", slash + 1)
+    ) {
+      const parent = path.slice(0, slash);
+      if (pathSet.has(parent)) {
+        throw new MaterializeError(
+          `materialize: path-prefix conflict: "${parent}" prefixes "${path}"`,
+        );
+      }
+    }
+  }
+}
+
+/**
  * Materialize a C6 public export bundle to real files under `targetDir`.
  *
  * One-way: writes the bundle's public blobs to real files at their public
@@ -178,14 +203,16 @@ export async function materialize(
   // Validate EVERY entry path (and object presence/kind) BEFORE clearing the
   // target or writing any files. An invalid manifest path must leave the
   // existing target untouched and produce no partial export: if any entry's
-  // path is unsafe, or its referenced object is missing/non-blob, we throw
-  // here, before `rmSync`/`mkdirSync`/`writeFileSync` run. This also detects
-  // duplicate normalized aliases (two entries resolving to the same absolute
-  // path) up front, which would otherwise silently overwrite one file with
-  // another's bytes.
+  // path is unsafe, conflicts with another path's directory prefix, or its
+  // referenced object is missing/non-blob, we throw here, before
+  // `rmSync`/`mkdirSync`/`writeFileSync` run. This also detects duplicate
+  // normalized aliases (two entries resolving to the same absolute path) up
+  // front, which would otherwise silently overwrite one file with another's
+  // bytes.
   type Plan = { abs: string; rel: string; path: string; bytes: Uint8Array };
   const plans: Plan[] = [];
   const seenAbs = new Set<string>();
+  const plannedPaths: string[] = [];
   for (const e of entries) {
     const abs = safeResolvePath(absTarget, e.path);
     if (seenAbs.has(abs)) {
@@ -194,6 +221,7 @@ export async function materialize(
       );
     }
     seenAbs.add(abs);
+    plannedPaths.push(e.path);
     const obj = bundle.objects.get(e.blobId);
     // `verifyPublicExportBundle` already guaranteed presence, but defend in
     // depth: never write a file whose object is missing.
@@ -211,6 +239,8 @@ export async function materialize(
     }
     plans.push({ abs, rel: relative(absTarget, abs).split(sep).join("/"), path: e.path, bytes: obj.bytes });
   }
+
+  assertNoPathPrefixConflicts(plannedPaths);
 
   // All entries validated. Now it is safe to clear and write: a failure beyond
   // this point is an I/O error, not a manifest-safety violation, and no

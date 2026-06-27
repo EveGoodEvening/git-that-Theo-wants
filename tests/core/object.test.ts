@@ -76,6 +76,20 @@ describe("C1 Blob", () => {
     expect(Array.from(blob.bytes)).toEqual(Array.from(before));
   });
 
+  it("createBlob owns Buffer-backed input views before hashing", async () => {
+    const backing = Buffer.from("Xcore-buffer-blobY");
+    const input = backing.subarray(1, backing.length - 1);
+    const original = new Uint8Array(input);
+    const blob = await createBlob(input);
+    const expectedId = await sha256(blobFraming(original));
+
+    backing.fill(0);
+
+    expect(Array.from(blob.bytes)).toEqual(Array.from(original));
+    expect(blob.id).toBe(expectedId);
+    expect(await sha256(blobFraming(blob.bytes))).toBe(blob.id);
+  });
+
   it("parseBlob returns owned bytes (serialization mutation is isolated)", async () => {
     const blob = await createBlob(new TextEncoder().encode("owned-parse"));
     const serialized = serializeBlob(blob);
@@ -97,6 +111,21 @@ describe("C1 Blob", () => {
     serialized.fill(0);
     const recomputed = await sha256(blobFraming(parsed.bytes));
     expect(parsed.id).toBe(recomputed);
+  });
+
+  it("parseBlob owns Buffer-backed serialized payload views before returning", async () => {
+    const blob = await createBlob(new TextEncoder().encode("buffer-parse-blob"));
+    const serialized = Buffer.from(serializeBlob(blob));
+    const parsed = await parseBlob(serialized);
+    const original = new Uint8Array(parsed.bytes);
+    const expectedId = await sha256(blobFraming(original));
+
+    serialized.fill(0);
+
+    expect(Array.from(parsed.bytes)).toEqual(Array.from(original));
+    expect(parsed.id).toBe(blob.id);
+    expect(parsed.id).toBe(expectedId);
+    expect(await sha256(blobFraming(parsed.bytes))).toBe(parsed.id);
   });
 
   it("parseBlob rejects a non-canonical length field (leading zero)", async () => {
@@ -181,6 +210,20 @@ describe("C1 ContentObject envelope", () => {
     expect(Array.from(obj.bytes)).toEqual(Array.from(before));
   });
 
+  it("createContentObject owns Buffer-backed input views before hashing", async () => {
+    const backing = Buffer.from("Xcore-buffer-contentY");
+    const input = backing.subarray(1, backing.length - 1);
+    const original = new Uint8Array(input);
+    const obj = await createContentObject("blob", input);
+    const expectedId = await sha256(contentFraming("blob", original));
+
+    backing.fill(0);
+
+    expect(Array.from(obj.bytes)).toEqual(Array.from(original));
+    expect(obj.id).toBe(expectedId);
+    expect(await sha256(contentFraming(obj.kind, obj.bytes))).toBe(obj.id);
+  });
+
   it("parseContentObject returns owned bytes (serialization mutation is isolated)", async () => {
     const obj = await createContentObject("blob", new TextEncoder().encode("co-owned"));
     const serialized = serializeContentObject(obj);
@@ -202,6 +245,24 @@ describe("C1 ContentObject envelope", () => {
     serialized.fill(0);
     const recomputed = await sha256(contentFraming(parsed.kind, parsed.bytes));
     expect(parsed.id).toBe(recomputed);
+  });
+
+  it("parseContentObject owns Buffer-backed serialized payload views before returning", async () => {
+    const obj = await createContentObject(
+      "secret-blob",
+      new TextEncoder().encode("buffer-parse-content"),
+    );
+    const serialized = Buffer.from(serializeContentObject(obj));
+    const parsed = await parseContentObject(serialized);
+    const original = new Uint8Array(parsed.bytes);
+    const expectedId = await sha256(contentFraming(parsed.kind, original));
+
+    serialized.fill(0);
+
+    expect(Array.from(parsed.bytes)).toEqual(Array.from(original));
+    expect(parsed.id).toBe(obj.id);
+    expect(parsed.id).toBe(expectedId);
+    expect(await sha256(contentFraming(parsed.kind, parsed.bytes))).toBe(parsed.id);
   });
 
   it("parse rejects a non-canonical length field (leading zero)", async () => {

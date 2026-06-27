@@ -234,7 +234,7 @@ describe("C5 secret blob crypto", () => {
       const key = await generateSecretKey();
       const secret = await putSecret(store, PLAINTEXT, key);
       const grant = await createReadGrant(store, secret.id, asActorId("alice"), ACL_KEY);
-      const plain = await getAndDecryptSecret(store, secret.id, key, grant.id, ACL_KEY);
+      const plain = await getAndDecryptSecret(store, secret.id, key, grant.id, asActorId("alice"), ACL_KEY);
       expect(new TextDecoder().decode(plain)).toBe(PLAINTEXT_STR);
     });
 
@@ -330,14 +330,29 @@ describe("C5 secret blob crypto", () => {
   // C5 policy binding: signed ACL read grant must authorize the object.
   describe("policy binding to signed ACL graph", () => {
     const SUBJECT = asActorId("alice");
+    const BOB = asActorId("bob");
 
     it("valid signed read grant decrypts", async () => {
       const store = makeStore();
       const key = await generateSecretKey();
       const secret = await putSecret(store, PLAINTEXT, key);
       const grant = await createReadGrant(store, secret.id, SUBJECT, ACL_KEY);
-      const plain = await decryptSecretFromStore(store, secret.id, key, grant.id, ACL_KEY);
+      const plain = await decryptSecretFromStore(store, secret.id, key, grant.id, SUBJECT, ACL_KEY);
       expect(new TextDecoder().decode(plain)).toBe(PLAINTEXT_STR);
+    });
+
+    it("grant minted for Alice cannot be used by Bob even with grant id and object key", async () => {
+      const store = makeStore();
+      const key = await generateSecretKey();
+      const secret = await putSecret(store, PLAINTEXT, key);
+      const grant = await createReadGrant(store, secret.id, SUBJECT, ACL_KEY);
+      try {
+        await getAndDecryptSecret(store, secret.id, key, grant.id, BOB, ACL_KEY);
+        throw new Error("expected Denied");
+      } catch (e) {
+        expect(e).toBeInstanceOf(Denied);
+        expect((e as Denied).reason).toBe("wrong-subject");
+      }
     });
 
     it("missing grant denies (no-grant)", async () => {
@@ -347,7 +362,7 @@ describe("C5 secret blob crypto", () => {
       // A random 64-hex id that does not exist in the store.
       const bogusGrantId = asAclNodeId("0".repeat(64));
       try {
-        await decryptSecretFromStore(store, secret.id, key, bogusGrantId, ACL_KEY);
+        await decryptSecretFromStore(store, secret.id, key, bogusGrantId, SUBJECT, ACL_KEY);
         throw new Error("expected Denied");
       } catch (e) {
         expect(e).toBeInstanceOf(Denied);
@@ -362,7 +377,7 @@ describe("C5 secret blob crypto", () => {
       const grant = await createReadGrant(store, secret.id, SUBJECT, ACL_KEY);
       // Verify under a different ACL key -> signature mismatch.
       try {
-        await decryptSecretFromStore(store, secret.id, key, grant.id, WRONG_ACL_KEY);
+        await decryptSecretFromStore(store, secret.id, key, grant.id, SUBJECT, WRONG_ACL_KEY);
         throw new Error("expected Denied");
       } catch (e) {
         expect(e).toBeInstanceOf(Denied);
@@ -378,7 +393,7 @@ describe("C5 secret blob crypto", () => {
       // Grant for A, but request B's id.
       const grant = await createReadGrant(store, secretA.id, SUBJECT, ACL_KEY);
       try {
-        await decryptSecretFromStore(store, secretB.id, key, grant.id, ACL_KEY);
+        await decryptSecretFromStore(store, secretB.id, key, grant.id, SUBJECT, ACL_KEY);
         throw new Error("expected Denied");
       } catch (e) {
         expect(e).toBeInstanceOf(Denied);
@@ -401,7 +416,7 @@ describe("C5 secret blob crypto", () => {
       );
       store.putAcl(node);
       try {
-        await decryptSecretFromStore(store, secret.id, key, node.id, ACL_KEY);
+        await decryptSecretFromStore(store, secret.id, key, node.id, SUBJECT, ACL_KEY);
         throw new Error("expected Denied");
       } catch (e) {
         expect(e).toBeInstanceOf(Denied);
@@ -409,23 +424,26 @@ describe("C5 secret blob crypto", () => {
       }
     });
 
-    it("verifyReadGrant returns undefined for missing/invalid/wrong-object/no-read", async () => {
+    it("verifyReadGrant returns undefined for missing/invalid/wrong-subject/wrong-object/no-read", async () => {
       const store = makeStore();
       const key = await generateSecretKey();
       const secret = await putSecret(store, PLAINTEXT, key);
       const grant = await createReadGrant(store, secret.id, SUBJECT, ACL_KEY);
       // Valid.
-      const ok = await verifyReadGrant(store, grant.id, secret.id, ACL_KEY);
+      const ok = await verifyReadGrant(store, grant.id, secret.id, SUBJECT, ACL_KEY);
       expect(ok?.id).toBe(grant.id);
       // Wrong ACL key.
-      const bad = await verifyReadGrant(store, grant.id, secret.id, WRONG_ACL_KEY);
+      const bad = await verifyReadGrant(store, grant.id, secret.id, SUBJECT, WRONG_ACL_KEY);
       expect(bad).toBeUndefined();
+      // Wrong subject.
+      const wrongSubject = await verifyReadGrant(store, grant.id, secret.id, BOB, ACL_KEY);
+      expect(wrongSubject).toBeUndefined();
       // Wrong object.
-      const wrongObj = await verifyReadGrant(store, grant.id, asHash("1".repeat(64)), ACL_KEY);
+      const wrongObj = await verifyReadGrant(store, grant.id, asHash("1".repeat(64)), SUBJECT, ACL_KEY);
       expect(wrongObj).toBeUndefined();
       // Missing grant.
       const bogusGrantId = asAclNodeId("0".repeat(64));
-      const missing = await verifyReadGrant(store, bogusGrantId, secret.id, ACL_KEY);
+      const missing = await verifyReadGrant(store, bogusGrantId, secret.id, SUBJECT, ACL_KEY);
       expect(missing).toBeUndefined();
     });
     it("getAndDecryptSecret denies without a grant (no-grant)", async () => {
@@ -434,7 +452,7 @@ describe("C5 secret blob crypto", () => {
       const secret = await putSecret(store, PLAINTEXT, key);
       const bogusGrantId = asAclNodeId("0".repeat(64));
       try {
-        await getAndDecryptSecret(store, secret.id, key, bogusGrantId, ACL_KEY);
+        await getAndDecryptSecret(store, secret.id, key, bogusGrantId, SUBJECT, ACL_KEY);
         throw new Error("expected Denied");
       } catch (e) {
         expect(e).toBeInstanceOf(Denied);
@@ -448,7 +466,7 @@ describe("C5 secret blob crypto", () => {
       const secret = await putSecret(store, PLAINTEXT, key);
       const grant = await createReadGrant(store, secret.id, SUBJECT, ACL_KEY);
       try {
-        await getAndDecryptSecret(store, secret.id, key, grant.id, WRONG_ACL_KEY);
+        await getAndDecryptSecret(store, secret.id, key, grant.id, SUBJECT, WRONG_ACL_KEY);
         throw new Error("expected Denied");
       } catch (e) {
         expect(e).toBeInstanceOf(Denied);
@@ -470,7 +488,7 @@ describe("C5 secret blob crypto", () => {
       );
       store.putAcl(node);
       try {
-        await getAndDecryptSecret(store, secret.id, key, node.id, ACL_KEY);
+        await getAndDecryptSecret(store, secret.id, key, node.id, SUBJECT, ACL_KEY);
         throw new Error("expected Denied");
       } catch (e) {
         expect(e).toBeInstanceOf(Denied);
@@ -485,7 +503,7 @@ describe("C5 secret blob crypto", () => {
       const secretB = await putSecret(store, new TextEncoder().encode("other"), key);
       const grant = await createReadGrant(store, secretA.id, SUBJECT, ACL_KEY);
       try {
-        await getAndDecryptSecret(store, secretB.id, key, grant.id, ACL_KEY);
+        await getAndDecryptSecret(store, secretB.id, key, grant.id, SUBJECT, ACL_KEY);
         throw new Error("expected Denied");
       } catch (e) {
         expect(e).toBeInstanceOf(Denied);
@@ -512,7 +530,7 @@ describe("C5 secret blob crypto", () => {
       }
       // Sanity: a valid grant still decrypts.
       const grant = await createReadGrant(store, secret.id, SUBJECT, ACL_KEY);
-      const plain = await getAndDecryptSecret(store, secret.id, key, grant.id, ACL_KEY);
+      const plain = await getAndDecryptSecret(store, secret.id, key, grant.id, SUBJECT, ACL_KEY);
       expect(new TextDecoder().decode(plain)).toBe(PLAINTEXT_STR);
     });
   });
@@ -522,6 +540,7 @@ describe("C5 secret blob crypto", () => {
   // access, but malformed bytes still fail decryption.
   describe("malformed stored bytes", () => {
     const SUBJECT = asActorId("alice");
+    const BOB = asActorId("bob");
 
     it("getAndDecryptSecret returns Denied('bad-framing') on truncated bytes with a valid grant", async () => {
       const store = makeStore();
@@ -532,11 +551,26 @@ describe("C5 secret blob crypto", () => {
       // Grant authorizes read of this (malformed) object.
       const grant = await createReadGrant(store, malformed.secret.id, SUBJECT, ACL_KEY);
       try {
-        await getAndDecryptSecret(store, malformed.secret.id, key, grant.id, ACL_KEY);
+        await getAndDecryptSecret(store, malformed.secret.id, key, grant.id, SUBJECT, ACL_KEY);
         throw new Error("expected Denied");
       } catch (e) {
         expect(e).toBeInstanceOf(Denied);
         expect((e as Denied).reason).toBe("bad-framing");
+      }
+    });
+
+    it("decryptSecretFromStore checks subject before loading malformed bytes", async () => {
+      const store = makeStore();
+      const key = await generateSecretKey();
+      const malformed = await toContentObject(new Uint8Array(5), key.policyId);
+      store.putObject(malformed.obj);
+      const grant = await createReadGrant(store, malformed.secret.id, SUBJECT, ACL_KEY);
+      try {
+        await decryptSecretFromStore(store, malformed.secret.id, key, grant.id, BOB, ACL_KEY);
+        throw new Error("expected Denied");
+      } catch (e) {
+        expect(e).toBeInstanceOf(Denied);
+        expect((e as Denied).reason).toBe("wrong-subject");
       }
     });
 
@@ -548,7 +582,7 @@ describe("C5 secret blob crypto", () => {
       store.putObject(plain);
       const grant = await createReadGrant(store, plain.id, SUBJECT, ACL_KEY);
       try {
-        await decryptSecretFromStore(store, plain.id, key, grant.id, ACL_KEY);
+        await decryptSecretFromStore(store, plain.id, key, grant.id, SUBJECT, ACL_KEY);
         throw new Error("expected Denied");
       } catch (e) {
         expect(e).toBeInstanceOf(Denied);
@@ -564,7 +598,7 @@ describe("C5 secret blob crypto", () => {
       store.putObject(tooShort);
       const grant = await createReadGrant(store, tooShort.id, SUBJECT, ACL_KEY);
       try {
-        await decryptSecretFromStore(store, tooShort.id, key, grant.id, ACL_KEY);
+        await decryptSecretFromStore(store, tooShort.id, key, grant.id, SUBJECT, ACL_KEY);
         throw new Error("expected Denied");
       } catch (e) {
         expect(e).toBeInstanceOf(Denied);

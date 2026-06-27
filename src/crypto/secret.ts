@@ -23,7 +23,7 @@
 // config (plan §2 decision 4). Key rotation (C5 stub) mints a new key with a
 // new policy id; old keys cannot decrypt new content.
 
-import { type Hash } from "../core/ids.ts";
+import { type ActorId, type Hash } from "../core/ids.ts";
 import {
   type SecretBlob,
   buildFraming,
@@ -45,8 +45,9 @@ const TAG_LEN = 16;
  * Typed error raised when decryption is denied. This is the *only* failure
  * mode for `decryptSecret` and the store-backed decrypt helpers: wrong key,
  * policy mismatch, tampered auth tag, truncated framing, unsupported
- * algorithm, and missing/invalid ACL read grant all surface as `Denied`. No
- * plaintext is ever returned on failure. The error carries no secret material.
+ * algorithm, and missing/invalid/mismatched-subject ACL read grant all surface
+ * as `Denied`. No plaintext is ever returned on failure. The error carries no
+ * secret material.
  */
 export class Denied extends Error {
   /** Coarse reason code (no secret data). */
@@ -58,6 +59,7 @@ export class Denied extends Error {
     | "no-grant"
     | "bad-grant"
     | "wrong-object"
+    | "wrong-subject"
     | "no-read-permission";
 
   constructor(
@@ -184,17 +186,20 @@ function loadSecretFromStore(
 
 /**
  * Retrieve a secret blob from `store` by its envelope `id` and decrypt it with
- * `key`, authorized by a verified C1 signed ACL read grant. This is the
- * policy-bound store-backed decrypt path: the caller supplies a `grantId`
- * (the `AclNodeId` of a signed read grant) plus the `LocalKey` used to
+ * `key`, authorized by a verified C1 signed ACL read grant for
+ * `expectedSubject`. This is the policy-bound store-backed decrypt path: the
+ * caller supplies a `grantId` (the `AclNodeId` of a signed read grant), the
+ * expected actor/subject consuming that grant, plus the `LocalKey` used to
  * sign/verify ACL nodes; the helper fetches the node via `Store.getAcl`,
  * verifies its signature via `verifyAclRecord`, and requires
- * `record.object === id` and `permissions.has('read')` before decrypting.
+ * `record.subject === expectedSubject`, `record.object === id`, and
+ * `permissions.has('read')` before loading or decrypting the blob.
  *
  * The `policyId` (key/policy binding) is taken from `key.policyId` — it is not
  * accepted as arbitrary caller authority. The signed ACL read grant authorizes
- * access to the object; the policy id binds the key to the blob. A caller
- * cannot decrypt a stored secret by merely supplying a `policyId` and key.
+ * access to the object for the expected subject; the policy id binds the key to
+ * the blob. A caller cannot decrypt a stored secret by merely supplying a
+ * `policyId`, key, grant id, and object id for another subject.
  *
  * Failures surface as typed `Denied` (see `decryptSecretFromStore` for the
  * reason codes). This helper is a thin wrapper around `decryptSecretFromStore`.
@@ -204,27 +209,33 @@ export async function getAndDecryptSecret(
   id: Hash,
   key: SecretKey,
   grantId: AclNodeId,
+  expectedSubject: ActorId,
   aclKey: LocalKey,
 ): Promise<Uint8Array> {
-  return decryptSecretFromStore(store, id, key, grantId, aclKey);
+  return decryptSecretFromStore(store, id, key, grantId, expectedSubject, aclKey);
 }
 
 /**
  * Retrieve and decrypt a secret blob from `store`, authorized by a verified C1
- * signed ACL read grant. This is the policy-bound decrypt path: the caller
- * supplies a `grantId` (the `AclNodeId` of a signed read grant) plus the
- * `LocalKey` used to sign/verify ACL nodes; the helper fetches the node via
+ * signed ACL read grant for `expectedSubject`. This is the policy-bound decrypt
+ * path: the caller supplies a `grantId` (the `AclNodeId` of a signed read
+ * grant), the expected actor/subject consuming that grant, plus the `LocalKey`
+ * used to sign/verify ACL nodes; the helper fetches the node via
  * `Store.getAcl`, verifies its signature via `verifyAclRecord`, and requires
- * `record.object === id` and `permissions.has('read')` before decrypting.
+ * `record.subject === expectedSubject`, `record.object === id`, and
+ * `permissions.has('read')` before loading or decrypting the blob.
  *
  * The `policyId` (key/policy binding) is taken from `key.policyId` — it is not
  * accepted as arbitrary caller authority. The signed ACL read grant authorizes
- * access to the object; the policy id binds the key to the blob.
+ * access to the object for the expected subject; the policy id binds the key to
+ * the blob.
  *
  * Failures surface as typed `Denied`:
  *   - `no-grant`: the ACL node is not present in the store (`NotFound` is
  *     normalized).
  *   - `bad-grant`: the node's signature does not verify under `aclKey`.
+ *   - `wrong-subject`: `record.subject !== expectedSubject` (the grant belongs
+ *     to a different actor).
  *   - `wrong-object`: `record.object !== id` (the grant is for a different
  *     object).
  *   - `no-read-permission`: `permissions` does not include `'read'`.
@@ -236,6 +247,7 @@ export async function decryptSecretFromStore(
   id: Hash,
   key: SecretKey,
   grantId: AclNodeId,
+  expectedSubject: ActorId,
   aclKey: LocalKey,
 ): Promise<Uint8Array> {
   let node: SignedAclNode;
@@ -247,6 +259,9 @@ export async function decryptSecretFromStore(
   const ok = await verifyAclRecord(node.record, node.signature, aclKey);
   if (!ok) {
     throw new Denied("bad-grant");
+  }
+  if (node.record.subject !== expectedSubject) {
+    throw new Denied("wrong-subject");
   }
   if (node.record.object !== id) {
     throw new Denied("wrong-object");

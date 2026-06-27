@@ -18,6 +18,7 @@
 
 import { type SnapshotId } from "../core/ids.ts";
 import { loadSnapshot } from "../snapshot/snapshot.ts";
+import { NotFound } from "../store/store.ts";
 import {
   publish as publishTransition,
   unpublish as unpublishTransition,
@@ -269,6 +270,15 @@ export async function cmdExport(argv: string[]): Promise<string> {
 export async function cmdPublish(argv: string[]): Promise<string> {
   const s = await requireSession();
   const id = s.resolveSnapshotId(nextArg(argv, "snapshot id"));
+  try {
+    s.store.getSnapshot(id);
+  } catch (err) {
+    if (err instanceof NotFound && err.kind === "snapshot") {
+      throw new CliError(`no snapshot matching id: ${id}`);
+    }
+    throw err;
+  }
+
   const vis = s.visibilityLog();
   const state = vis.get(id);
   // Authorization: owner role for the in-process demo.

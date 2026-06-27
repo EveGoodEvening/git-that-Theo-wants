@@ -186,6 +186,33 @@ describe("C7 workspace independence", () => {
     expect(conflicts.list()).toHaveLength(0);
   });
 
+  it("one-sided advance from the shared base produces no conflict", async () => {
+    const store = new MemoryStore();
+    const log = new OpLog();
+    const bookmarks = new Bookmarks(log);
+    const manager = new WorkspaceManager(store, log, bookmarks);
+    const conflicts = new ConflictLog();
+
+    const baseId = await seedSnapshot(store, "shared.txt", "base");
+    bookmarks.createBookmark("main", baseId);
+
+    const a = await manager.createAtRef("main", { now: () => 2000 });
+    const b = await manager.createAtRef("main", { now: () => 3000 });
+
+    await a.write("a.txt", enc("a"));
+    const boundary = await a.commandBoundary({ timestamp: 2100, message: "a" });
+
+    expect(boundary).not.toBeNull();
+    expect(a.currentSnapshotId).toBe(boundary!.snapshot.id);
+    expect(a.currentSnapshotId).not.toBe(baseId);
+    expect(b.currentSnapshotId).toBe(baseId);
+
+    const conflict = await diverge(conflicts, a, b, baseId, 4000);
+
+    expect(conflict).toBeNull();
+    expect(conflicts.list()).toHaveLength(0);
+  });
+
   it("conflict-as-data is resolvable and resolution is recorded, not thrown", async () => {
     const store = new MemoryStore();
     const log = new OpLog();

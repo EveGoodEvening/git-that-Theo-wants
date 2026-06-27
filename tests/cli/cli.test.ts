@@ -712,6 +712,22 @@ describe("C9 CLI subprocess planned flow (durable across invocations)", () => {
     expect(artifactText).not.toContain("first");
   });
 
+  it("publish of a nonexistent full snapshot id fails without recording visibility", async () => {
+    const workDir = mkdtempSync(join(tmpdir(), "gtw-subprocess-missing-publish-"));
+    await gtw(workDir, ["init"]);
+    const bogus = "0".repeat(64);
+
+    const rPublish = await gtw(workDir, ["publish", bogus]);
+    expect(rPublish.exitCode).toBe(1);
+    expect(rPublish.stdout.toString()).not.toContain("published");
+    expect(rPublish.stderr.toString()).toContain("no snapshot matching id");
+
+    const rCheck = await gtw(workDir, ["publish-check", bogus]);
+    expect(rCheck.exitCode).toBe(0);
+    expect(rCheck.stdout.toString()).toContain("visibility: private");
+    expect(rCheck.stdout.toString()).toContain("transitioned: false");
+  });
+
   it("there is no fetch command", async () => {
     const workDir = mkdtempSync(join(tmpdir(), "gtw-no-fetch-"));
     await gtw(workDir, ["init"]);

@@ -295,11 +295,11 @@ export class WorkspaceManager {
 }
 
 /**
- * Detect and record divergence between two workspaces on the same logical ref.
- * Both workspaces must share a common `base` snapshot id; if their current
- * snapshot ids differ, a `Conflict` is built and recorded in `log`. Returns the
- * recorded conflict, or `null` if there is no divergence (same head) or no
- * shared base. Never throws — divergence is conflict-as-data, not a lock error.
+ * A conflict is recorded only when both current snapshot ids are non-null,
+ * differ from each other, and both differ from the shared `base`. Returns the
+ * recorded conflict, or `null` when either workspace is still at `base`, both
+ * heads are the same, or no shared base exists. Never throws — divergence is
+ * conflict-as-data, not a lock error.
  *
  * `ref` defaults to the shared ref name when both workspaces report the same
  * non-null ref, otherwise the caller should supply the logical ref explicitly.
